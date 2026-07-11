@@ -1,0 +1,39 @@
+spring:
+  application:
+    name: gateway
+  cloud:
+    gateway:
+      server:
+        webflux:
+          routes:
+            - id: downstream-api
+              uri: ${DOWNSTREAM_API_URI:http://localhost:9000}
+              predicates:
+                - Path=/api/**
+              filters:
+                - StripPrefix=1
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${COGNITO_ISSUER_URI}
+
+server:
+  port: ${PORT:8080}
+
+gateway:
+  cache:
+    user-data-ttl: ${USER_DATA_CACHE_TTL:30m}
+  cognito:
+    user-info-uri: ${COGNITO_USER_INFO_URI}
+    username-claim: ${COGNITO_USERNAME_CLAIM:username}
+    email-claim: ${COGNITO_EMAIL_CLAIM:email}
+    cache-key-prefix: ${COGNITO_EMAIL_CACHE_KEY_PREFIX:}
+    email-cache-ttl: ${COGNITO_EMAIL_CACHE_TTL:12h}
+  redis:
+    host: ${AZURE_REDIS_HOST}
+    port: ${AZURE_REDIS_PORT:6380}
+    ssl: ${AZURE_REDIS_SSL:true}
+    managed-identity-object-id: ${AZURE_REDIS_MANAGED_IDENTITY_OBJECT_ID}
+    command-timeout: ${AZURE_REDIS_COMMAND_TIMEOUT:5s}
+    token-refresh-before-expiry: ${AZURE_REDIS_TOKEN_REFRESH_BEFORE_EXPIRY:5m}
