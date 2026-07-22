@@ -1,8 +1,10 @@
 package com.tcs.shared.redis.servlet;
 
 import com.azure.core.credential.TokenCredential;
-import com.azure.identity.DefaultAzureCredentialBuilder;
+import com.azure.identity.AzureCliCredentialBuilder;
+import com.azure.identity.ManagedIdentityCredentialBuilder;
 import io.lettuce.core.RedisCredentialsProvider;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -21,9 +23,17 @@ import org.springframework.data.redis.serializer.StringRedisSerializer;
 @EnableConfigurationProperties(AzureRedisProperties.class)
 public class ServletAzureRedisConfig {
 
-	@Bean
-	TokenCredential azureTokenCredential() {
-		return new DefaultAzureCredentialBuilder().build();
+	@Bean("azureTokenCredential")
+	@ConditionalOnProperty(prefix = "app.redis", name = "credential-mode", havingValue = "managed-identity",
+			matchIfMissing = true)
+	TokenCredential managedIdentityTokenCredential() {
+		return new ManagedIdentityCredentialBuilder().build();
+	}
+
+	@Bean("azureTokenCredential")
+	@ConditionalOnProperty(prefix = "app.redis", name = "credential-mode", havingValue = "azure-cli")
+	TokenCredential azureCliTokenCredential() {
+		return new AzureCliCredentialBuilder().build();
 	}
 
 	@Bean
