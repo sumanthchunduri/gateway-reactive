@@ -30,6 +30,7 @@ gateway:
     email-claim: ${COGNITO_EMAIL_CLAIM:email}
     cache-key-prefix: ${COGNITO_EMAIL_CACHE_KEY_PREFIX:}
     email-cache-ttl: ${COGNITO_EMAIL_CACHE_TTL:12h}
+    email-cache-l1-maximum-size: ${COGNITO_EMAIL_CACHE_L1_MAXIMUM_SIZE:50000}
   redis:
     host: ${AZURE_REDIS_HOST}
     port: ${AZURE_REDIS_PORT:6380}
