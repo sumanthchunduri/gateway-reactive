@@ -2,6 +2,7 @@ package com.tcs.shared.redis.servlet;
 
 import java.time.Duration;
 import java.util.Optional;
+import java.util.function.Function;
 
 import com.github.benmanes.caffeine.cache.Cache;
 import com.github.benmanes.caffeine.cache.Caffeine;
@@ -44,29 +45,50 @@ public class ServletUsernameEmailCache {
 
 	public Optional<String> get(String username) {
 		Assert.hasText(username, "username must not be blank");
-		String l1Email = l1Cache.getIfPresent(username);
-		if (l1Email != null) {
-			return Optional.of(l1Email);
-		}
+		return Optional.ofNullable(l1Cache.get(username, this::readFromRedis));
+	}
 
-		try {
-			String email = redisTemplate.opsForValue().get(redisKey(username));
-			if (email != null) {
-				l1Cache.put(username, email);
+	/**
+	 * Gets an email from Caffeine or loads it atomically from Redis and the supplied source.
+	 * Concurrent servlet requests for the same username wait for the same cache computation instead
+	 * of issuing duplicate Redis or remote username lookups.
+	 */
+	public Optional<String> getOrLoad(String username, Function<String, String> emailLoader) {
+		Assert.hasText(username, "username must not be blank");
+		Assert.notNull(emailLoader, "emailLoader must not be null");
+		return Optional.ofNullable(l1Cache.get(username, (key) -> {
+			String cachedEmail = readFromRedis(key);
+			if (cachedEmail != null) {
+				return cachedEmail;
 			}
-			return Optional.ofNullable(email);
-		}
-		catch (RuntimeException ex) {
-			logger.warn("Unable to read email cache for username {}", username, ex);
-			return Optional.empty();
-		}
+
+			String loadedEmail = emailLoader.apply(key);
+			if (loadedEmail == null || loadedEmail.isBlank()) {
+				return null;
+			}
+			writeToRedis(key, loadedEmail);
+			return loadedEmail;
+		}));
 	}
 
 	public void put(String username, String email) {
 		Assert.hasText(username, "username must not be blank");
 		Assert.hasText(email, "email must not be blank");
 		l1Cache.put(username, email);
+		writeToRedis(username, email);
+	}
 
+	private String readFromRedis(String username) {
+		try {
+			return redisTemplate.opsForValue().get(redisKey(username));
+		}
+		catch (RuntimeException ex) {
+			logger.warn("Unable to read email cache for username {}", username, ex);
+			return null;
+		}
+	}
+
+	private void writeToRedis(String username, String email) {
 		try {
 			redisTemplate.opsForValue().set(redisKey(username), email, redisTtl);
 		}
